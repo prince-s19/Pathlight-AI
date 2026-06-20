@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
@@ -279,6 +278,7 @@ async function initServer() {
   
   // Only use Vite dev server if NOT on Vercel AND in development
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
