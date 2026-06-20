@@ -1,0 +1,6 @@
+{
+  "name": "Pathlight",
+  "description": "An AI-powered platform for discovering internships, hackathons, scholarships, and more.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
