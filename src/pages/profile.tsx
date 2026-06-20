@@ -43,10 +43,29 @@ export default function Profile() {
         throw error;
       }
       if (data) {
-        setProfile(data);
-        setFormData(data);
+        // Handle BOTH education_year and graduation_year columns from database
+        const remoteYear = data.education_year !== null && data.education_year !== undefined
+          ? data.education_year
+          : (data.graduation_year !== null && data.graduation_year !== undefined ? data.graduation_year : null);
+
+        const cached = localStorage.getItem(`pathlight_profile_${user!.id}`);
+        const local = cached ? JSON.parse(cached) : {};
+
+        // Merge: prefer Remote values but don't let remote nulls/empty values wipe out local values
+        const merged = {
+          ...local,
+          user_id: data.user_id || local.user_id || user!.id,
+          name: data.name || local.name || extractNameFromEmail(user?.email || ''),
+          skills: (data.skills && data.skills.length > 0) ? data.skills : (local.skills || []),
+          interests: (data.interests && data.interests.length > 0) ? data.interests : (local.interests || []),
+          education_year: remoteYear !== null && remoteYear !== undefined ? remoteYear : (local.education_year || null),
+          created_at: data.created_at || local.created_at || new Date().toISOString()
+        };
+
+        setProfile(merged);
+        setFormData(merged);
         // Sync with local fallback cache
-        localStorage.setItem(`pathlight_profile_${user!.id}`, JSON.stringify(data));
+        localStorage.setItem(`pathlight_profile_${user!.id}`, JSON.stringify(merged));
       } else {
         // No remote record yet, check local cache first for dynamic local tracking
         const cached = localStorage.getItem(`pathlight_profile_${user!.id}`);
@@ -105,6 +124,7 @@ export default function Profile() {
   };
 
   const handleSave = async () => {
+    const parsedYear = formData.education_year ? parseInt(formData.education_year as any) : null;
     const payload = {
       user_id: user!.id,
       name: formData.name,
@@ -114,7 +134,8 @@ export default function Profile() {
       interests: typeof formData.interests === 'string'
         ? (formData.interests as string).split(',').map(s => s.trim()).filter(Boolean)
         : formData.interests || [],
-      education_year: formData.education_year ? parseInt(formData.education_year as any) : null,
+      education_year: parsedYear,
+      graduation_year: parsedYear, // Write to both in case the DB table utilizes synonyms
       created_at: profile?.created_at || new Date().toISOString()
     };
 
@@ -133,14 +154,12 @@ export default function Profile() {
       
       toast.success("Profile updated");
       setIsEditing(false);
-      fetchProfile();
     } catch (error: any) {
       console.warn("Exception during remote profile save, using local cache:", error);
       
       // Even if database endpoint exception occurred, we have cached it locally
       toast.success("Profile updated");
       setIsEditing(false);
-      fetchProfile();
     }
   };
 
@@ -230,7 +249,10 @@ export default function Profile() {
               </div>
             </div>
             <div className="pt-2">
-              <GlassButton variant="secondary" onClick={() => setIsEditing(true)}>Edit Profile</GlassButton>
+              <GlassButton variant="secondary" onClick={() => {
+                setFormData(profile || {});
+                setIsEditing(true);
+              }}>Edit Profile</GlassButton>
             </div>
           </div>
         )}
